@@ -33,7 +33,7 @@ class UpcloudBackupTypeProvider extends AbstractBackupTypeProvider {
 	 */
 	@Override
 	String getCode() {
-		return "upcloudBackupTypeProvider"
+		return "upCloudSnapshot"
 	}
 
 	/**
@@ -44,7 +44,7 @@ class UpcloudBackupTypeProvider extends AbstractBackupTypeProvider {
 	 */
 	@Override
 	String getName() {
-		return "UpcloudBackupTypeProvider"
+		return "UpCloud VM Snapshot"
 	}
 	
 	/**
@@ -98,7 +98,7 @@ class UpcloudBackupTypeProvider extends AbstractBackupTypeProvider {
 	 */
 	@Override
 	String getRestoreType() {
-		return "online"
+		return "offline"
 	}
 
 	/**

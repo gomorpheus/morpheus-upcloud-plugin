@@ -16,6 +16,8 @@
 package com.morpheusdata.upcloud
 
 import com.morpheusdata.core.Plugin
+import com.morpheusdata.model.*
+import com.morpheusdata.upcloud.services.UpcloudApiService
 
 class UpcloudPlugin extends Plugin {
 
@@ -38,5 +40,45 @@ class UpcloudPlugin extends Plugin {
     @Override
     void onDestroy() {
         //nothing to do for now
+    }
+
+    def getAuthConfig(Cloud cloud) {
+        def rtn = [:]
+
+        if(!cloud.accountCredentialLoaded) {
+            AccountCredential accountCredential
+            try {
+                if(!cloud.account?.id || !cloud.owner?.id) {
+                    log.debug("cloud account or owner id is missing, loading cloud object")
+                    cloud = morpheus.services.cloud.get(cloud.id)
+                }
+                accountCredential = morpheus.services.accountCredential.loadCredentials(cloud)
+            } catch(e) {
+                // If there is no credential on the cloud, then this will error
+            }
+            cloud.accountCredentialLoaded = true
+            cloud.accountCredentialData = accountCredential?.data
+        }
+
+        log.debug("AccountCredential loaded: $cloud.accountCredentialLoaded, Data: $cloud.accountCredentialData")
+
+        def username
+        if(cloud.accountCredentialData && cloud.accountCredentialData.containsKey('username')) {
+            username = cloud.accountCredentialData['username']
+        } else {
+            username = cloud.configMap.username
+        }
+
+        def password
+        if(cloud.accountCredentialData && cloud.accountCredentialData.containsKey('password')) {
+            password = cloud.accountCredentialData['password']
+        } else {
+            password = cloud.configMap.password
+        }
+
+        rtn.username = username
+        rtn.password = password
+        rtn.apiUrl = UpcloudApiService.upCloudEndpoint
+        return rtn
     }
 }

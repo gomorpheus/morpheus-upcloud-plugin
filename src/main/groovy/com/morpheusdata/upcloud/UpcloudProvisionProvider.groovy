@@ -4,6 +4,7 @@ import com.morpheusdata.core.AbstractProvisionProvider
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.providers.WorkloadProvisionProvider
+import com.morpheusdata.core.util.ComputeUtility
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.Icon
 import com.morpheusdata.model.OptionType
@@ -56,7 +57,7 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 	 */
 	@Override
 	String getProvisionTypeCode() {
-		return PROVISION_PROVIDER_CODE
+		return 'upcloud'
 	}
 
 	/**
@@ -77,7 +78,11 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 	 */
 	@Override
 	Collection<OptionType> getOptionTypes() {
-		Collection<OptionType> options = []
+		Collection<OptionType> options = [
+			new OptionType(
+				code:'provisionType.general.noAgent'
+			)
+		]
 		// TODO: create some option types for provisioning and add them to collection
 		return options
 	}
@@ -99,7 +104,10 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 	 */
 	@Override
 	Collection<StorageVolumeType> getRootVolumeStorageTypes() {
-		Collection<StorageVolumeType> volumeTypes = []
+		Collection<StorageVolumeType> volumeTypes = [
+			new StorageVolumeType(code:'upcloudVolume', displayName:'UpCloud MaxIOPS', name:'MaxIOPS', description:'UpCloud MaxIOPS', volumeType:'disk', enabled:true,
+				displayOrder:1, customLabel:true, customSize:true, defaultType:true, autoDelete:true, minStorage:(10L * ComputeUtility.ONE_GIGABYTE), allowSearch:true, volumeCategory:'disk')
+		]
 		// TODO: create some storage volume types and add to collection
 		return volumeTypes
 	}
@@ -110,7 +118,10 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 	 */
 	@Override
 	Collection<StorageVolumeType> getDataVolumeStorageTypes() {
-		Collection<StorageVolumeType> dataVolTypes = []
+		Collection<StorageVolumeType> dataVolTypes = [
+			new StorageVolumeType(code:'upcloudVolume', displayName:'UpCloud MaxIOPS', name:'MaxIOPS', description:'UpCloud MaxIOPS', volumeType:'disk', enabled:true,
+				displayOrder:1, customLabel:true, customSize:true, defaultType:true, autoDelete:true, minStorage:(10L * ComputeUtility.ONE_GIGABYTE), allowSearch:true, volumeCategory:'disk')
+		]
 		// TODO: create some data volume types and add to collection
 		return dataVolTypes
 	}
@@ -285,7 +296,7 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 	 */
 	@Override
 	String getCode() {
-		return PROVISION_PROVIDER_CODE
+		return 'upcloud'
 	}
 
 	/**

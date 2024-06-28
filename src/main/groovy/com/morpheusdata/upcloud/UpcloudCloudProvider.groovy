@@ -39,7 +39,7 @@ class UpcloudCloudProvider implements CloudProvider {
 	 */
 	@Override
 	String getDescription() {
-		return 'Describe me!'
+		return 'UpCloud'
 	}
 
 	/**
@@ -70,7 +70,21 @@ class UpcloudCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Collection<OptionType> getOptionTypes() {
-		Collection<OptionType> options = []
+		Collection<OptionType> options = [
+			new OptionType(code:'zoneType.upcloud.credential', inputType: OptionType.InputType.CREDENTIAL, name:'Credentials', category:'zoneType.upcloud',
+				fieldName:'type', fieldCode:'gomorpheus.label.credentials', fieldLabel:'Credentials', fieldContext:'credential', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:true, global:false,
+				placeHolder:null, helpBlock:'', defaultValue:'local', custom:false, displayOrder:2, fieldClass:null, optionSource:'credentials', config: JsonOutput.toJson(credentialTypes:['username-password']).toString()),
+			new OptionType(code:'zoneType.upcloud.username', inputType:OptionType.InputType.TEXT, name:'Username', category:'zoneType.upcloud',
+				fieldName:'username', fieldCode: 'gomorpheus.optiontype.Username', fieldLabel:'Username', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false,
+				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:2, fieldClass:null, fieldSize:15, localCredential:true),
+			new OptionType(code:'zoneType.upcloud.password', inputType:OptionType.InputType.PASSWORD, name:'Password', category:'zoneType.upcloud',
+				fieldName:'password', fieldCode: 'gomorpheus.optiontype.Password', fieldLabel:'Password', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false,
+				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:3, fieldClass:null, fieldSize:25, localCredential:true),
+			new OptionType(code:'zoneType.upcloud.zone', inputType:OptionType.InputType.TEXT, name:'Zone', category:'zoneType.upcloud',
+				fieldName:'zone', fieldCode: 'gomorpheus.optiontype.Zone', fieldLabel:'Zone', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false,
+				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:4, fieldClass:null, fieldSize:15)
+		]
+
 		return options
 	}
 
@@ -100,7 +114,17 @@ class UpcloudCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Collection<NetworkType> getNetworkTypes() {
-		Collection<NetworkType> networks = []
+		Collection<NetworkType> networks = [
+			new NetworkType(code:'dockerBridge', name:'Docker Bridge', description:'', overlay:false, creatable:false, nameEditable:false,
+				cidrEditable:false,  cidrRequired:false, dhcpServerEditable:false, dnsEditable:false, gatewayEditable:false, vlanIdEditable:false, canAssignPool:false,
+				deletable:false, hasNetworkServer:false, hasCidr:true),
+			new NetworkType(code:'overlay', name:'Overlay', description:'', overlay:true, creatable:false, nameEditable:true, cidrEditable:true, cidrRequired:false,
+				dhcpServerEditable:true, dnsEditable:true, gatewayEditable:true, vlanIdEditable:true, canAssignPool:true, deletable:true,
+				hasNetworkServer:false, hasCidr:true),
+			new NetworkType(code:'host', name:'Host Network', description:'', overlay:false, creatable:true, nameEditable:true, cidrEditable:true, cidrRequired:false,
+				dhcpServerEditable:true, dnsEditable:true, gatewayEditable:true, vlanIdEditable:true, canAssignPool:true, deletable:true,
+				hasNetworkServer:false, hasCidr:true)
+		]
 		return networks
 	}
 
@@ -140,7 +164,65 @@ class UpcloudCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Collection<ComputeServerType> getComputeServerTypes() {
-		Collection<ComputeServerType> serverTypes = []
+		Collection<ComputeServerType> serverTypes = [
+			new ComputeServerType(
+				code:'selfManagedLinux', name:'Manual Docker Host', description:'', platform:'linux', nodeType:'morpheus-node',
+				enabled:true, selectable:false, externalDelete:false, managed:true, controlPower:false, controlSuspend:false, creatable:true, computeService:'standardComputeService',
+				displayOrder:16, hasAutomation:true,
+				containerHypervisor:true, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.host, containerEngine:'docker',
+				provisionTypeCode: 'manual',
+				computeTypeCode:'docker-host',
+				optionTypes:[
+					new OptionType(code:'computeServerType.global.sshHost'),
+					new OptionType(code:'computeServerType.global.sshPort'),
+					new OptionType(code:'computeServerType.global.sshUsername'),
+					new OptionType(code:'computeServerType.global.sshPassword'),
+					new OptionType(code:'computeServerType.global.provisionKey'),
+					new OptionType(code:'computeServerType.global.lvmEnabled'),
+					new OptionType(code:'computeServerType.global.dataDevice'),
+					new OptionType(code:'computeServerType.global.softwareRaid'),
+					new OptionType(code:'computeServerType.global.network.name')
+				]
+			),
+			new ComputeServerType(
+				code:'upcloudWindows', name:'UpCloud Windows Node', description:'', platform:'windows', nodeType:'morpheus-windows-node',
+				enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false, creatable:false, computeService:'upCloudComputeService',
+				displayOrder:17, hasAutomation:true,reconfigureSupported: true,
+				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.host, guestVm:true,
+				provisionTypeCode:'upcloud'
+			),
+			new ComputeServerType(
+				code:'upcloudLinux', name:'UpCloud Docker Host', description:'', platform:'linux', nodeType:'morpheus-node',
+				enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false, creatable:false, computeService:'upCloudComputeService',
+				displayOrder: 16, hasAutomation:true,reconfigureSupported: true,
+				containerHypervisor:true, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.host, containerEngine:'docker',
+				provisionTypeCode:'upcloud',
+				computeTypeCode:'docker-host'
+			),
+			new ComputeServerType(
+				code:'upcloudVm', name:'UpCloud VM Instance', description:'', platform:'linux', nodeType:'morpheus-vm-node',
+				enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false, creatable:true, computeService:'upCloudComputeService',
+				displayOrder: 0, hasAutomation:true,reconfigureSupported: true,
+				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.guest, guestVm:true,
+				provisionTypeCode:'upcloud'
+			),
+			new ComputeServerType(
+				code:'selfManagedKvm', name:'Manual KVM Host', description:'', platform:'linux', nodeType:'morpheus-node',
+				enabled:true, selectable:false, externalDelete:false, managed:true, controlPower:false, controlSuspend:false, creatable:false, computeService:'standardComputeService',
+				displayOrder:16, hasAutomation:true,
+				containerHypervisor:false, bareMetalHost:false, vmHypervisor:true, agentType:ComputeServerType.AgentType.guest,
+				provisionTypeCode: 'manual',
+				computeTypeCode: 'kvm-host',
+				optionTypes:[
+					new OptionType(code:'computeServerType.global.sshHost'),
+					new OptionType(code:'computeServerType.global.sshPort'),
+					new OptionType(code:'computeServerType.global.sshUsername'),
+					new OptionType(code:'computeServerType.global.sshPassword'),
+					new OptionType(code:'computeServerType.global.provisionKey')
+				]
+			)
+		]
+
 		return serverTypes
 	}
 
@@ -234,7 +316,7 @@ class UpcloudCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Boolean hasDatastores() {
-		return true
+		return false
 	}
 
 	/**
@@ -253,7 +335,7 @@ class UpcloudCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Boolean hasCloudInit() {
-		return true
+		return false
 	}
 
 	/**
@@ -343,7 +425,7 @@ class UpcloudCloudProvider implements CloudProvider {
 	 */
 	@Override
 	String getCode() {
-		return CLOUD_PROVIDER_CODE
+		return 'upcloud'
 	}
 
 	/**
