@@ -17,9 +17,12 @@ package com.morpheusdata.upcloud
 
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.model.*
+import com.morpheusdata.upcloud.datasets.UpcloudCloudRegionDatasetProvider
 import com.morpheusdata.upcloud.datasets.UpcloudImageDatasetProvider
 import com.morpheusdata.upcloud.services.UpcloudApiService
+import groovy.util.logging.Slf4j
 
+@Slf4j
 class UpcloudPlugin extends Plugin {
 
     @Override
@@ -34,6 +37,7 @@ class UpcloudPlugin extends Plugin {
         this.registerProvider(new UpcloudProvisionProvider(this,this.morpheus))
         this.registerProvider(new UpcloudBackupProvider(this,this.morpheus))
         this.registerProvider(new UpcloudImageDatasetProvider(this, this.morpheus))
+        this.registerProvider(new UpcloudCloudRegionDatasetProvider(this, this.morpheus))
     }
 
     /**
@@ -44,22 +48,80 @@ class UpcloudPlugin extends Plugin {
         //nothing to do for now
     }
 
+    Map getAuthConfig(Map args) {
+        def rtn = [:]
+        def accountCredentialData
+        def username
+        def password
+
+        if(args.credential && args.credential.type != 'local') {
+            Map accountCredential
+            try {
+                accountCredential = morpheus.services.accountCredential.loadCredentialConfig(args.credential, [:])
+            } catch(e) {
+                // If there is no credential in the args, then this will error
+            }
+            log.debug("accountCredential: $accountCredential")
+            accountCredentialData = accountCredential?.data
+            if(accountCredentialData) {
+                if(accountCredentialData.containsKey('username')) {
+                    username = accountCredentialData['username']
+                }
+                if(accountCredentialData.containsKey('password')) {
+                    password = accountCredentialData['password']
+                }
+            }
+        } else {
+            log.debug("config: $args.config")
+            username = args?.config?.username
+            password = args?.config?.password
+        }
+
+        rtn.username = username
+        rtn.password = password
+        rtn.apiUrl = UpcloudApiService.upCloudEndpoint
+        log.debug("getAuthConfig: ${rtn}")
+        return rtn
+    }
+
     def getAuthConfig(Cloud cloud) {
         def rtn = [:]
 
-        if(!cloud.accountCredentialLoaded) {
-            AccountCredential accountCredential
-            try {
+//        if(!cloud.accountCredentialLoaded) {
+//            AccountCredential accountCredential
+//            try {
+//                if(!cloud.account?.id || !cloud.owner?.id) {
+//                    log.debug("cloud account or owner id is missing, loading cloud object")
+//                    cloud = morpheus.services.cloud.get(cloud.id)
+//                }
+//                accountCredential = morpheus.services.accountCredential.loadCredentials(cloud)
+//            } catch(e) {
+//                // If there is no credential on the cloud, then this will error
+//                log.error("No credential on cloud")
+//            }
+//            cloud.accountCredentialLoaded = true
+//            cloud.accountCredentialData = accountCredential?.data
+//        }
+
+        try {
+            log.debug("cloud.account.id: ${cloud.account?.id}")
+            log.debug("cloud.owner.id: ${cloud.owner?.id}")
+            log.debug("cloud.id: ${cloud?.id}")
+            log.debug("cloud.accountCredentialLoaded: ${cloud.accountCredentialLoaded}")
+
+            if(!cloud.accountCredentialLoaded) {
                 if(!cloud.account?.id || !cloud.owner?.id) {
                     log.debug("cloud account or owner id is missing, loading cloud object")
                     cloud = morpheus.services.cloud.get(cloud.id)
                 }
-                accountCredential = morpheus.services.accountCredential.loadCredentials(cloud)
-            } catch(e) {
-                // If there is no credential on the cloud, then this will error
+                AccountCredential accountCredential = morpheus.services.accountCredential.loadCredentials(cloud)
+                cloud.accountCredentialLoaded = true
+                cloud.accountCredentialData = accountCredential?.data
+                log.debug("ACCOUNT CREDS AUTHCONFIG: ${accountCredential}")
             }
-            cloud.accountCredentialLoaded = true
-            cloud.accountCredentialData = accountCredential?.data
+        } catch(e) {
+            // If there is no credential on the cloud, then this will error
+            log.error("No credential on cloud")
         }
 
         log.debug("AccountCredential loaded: $cloud.accountCredentialLoaded, Data: $cloud.accountCredentialData")

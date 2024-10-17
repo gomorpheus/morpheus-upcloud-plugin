@@ -9,36 +9,48 @@ import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.projection.VirtualImageIdentityProjection
 import com.morpheusdata.upcloud.UpcloudPlugin
 import com.morpheusdata.upcloud.services.UpcloudApiService
+import groovy.util.logging.Slf4j
 
+@Slf4j
 class UserImagesSync {
     private Cloud cloud
     UpcloudPlugin plugin
     private MorpheusContext morpheusContext
 
-    UserImagesSync(Cloud cloud, UpcloudPlugin plugin) {
+    UserImagesSync(Cloud cloud, UpcloudPlugin plugin, MorpheusContext morpheusContext) {
         this.cloud = cloud
         this.plugin = plugin
-        this.morpheusContext = plugin.morpheusContext
+        this.morpheusContext = morpheusContext
     }
 
     def execute() {
         try {
             def authConfig = plugin.getAuthConfig(cloud)
+            log.debug("authConfig: ${authConfig}")
             def imageResults = UpcloudApiService.listUserTemplates(authConfig)
-
+            log.debug("image results: ${imageResults}")
             if (imageResults.success == true) {
-                def imageRecords = morpheusContext.async.virtualImage.listIdentityProjections(
+                log.debug("CLOUD ID: ${cloud.id}")
+                def apiResults = morpheusContext.async.virtualImage.listIdentityProjections(
                         new DataQuery().withFilter("refType", "ComputeZone")
-                        .withFilter("refId", cloud.id)
+                        .withFilter("refId", cloud.id.toString())
                 )
+                //log.debug("API RESULTS: ${apiResults.toList().blockingGet()}")
+                def imageRecords = apiResults ?: []
+                log.debug("IMAGE RECORDS: ${imageRecords}")
 
-                SyncTask<VirtualImageIdentityProjection, Map, VirtualImage> syncTask = new SyncTask<>(imageRecords, imageResults.imageData as Collection<Map>) as SyncTask<VirtualImageIdentityProjection, Map, VirtualImage>
+                def storages = imageResults?.data?.storages?.storage ?: []
+                log.debug("STORAGES: ${storages}")
+
+                SyncTask<VirtualImageIdentityProjection, Map, VirtualImage> syncTask = new SyncTask<>(imageRecords, storages as Collection<Map>) //as SyncTask<VirtualImageIdentityProjection, Map, VirtualImage>
                 syncTask.addMatchFunction { VirtualImageIdentityProjection imageObject, Map cloudItem ->
-                    imageObject.externalId == cloudItem?.uuid
+                    imageObject.externalId == cloudItem?.uuid.toString()
                 }.withLoadObjectDetailsFromFinder { List<SyncTask.UpdateItemDto<VirtualImageIdentityProjection, Map>> updateItems ->
                     morpheusContext.async.virtualImage.listById(updateItems.collect { it.existingItem.id } as List<Long>)
                 }.onAdd { itemsToAdd ->
                     addMissingImages(itemsToAdd)
+                }.onUpdate {
+                    // do nothing
                 }.onDelete { removeItems ->
                     removeMissingImages(removeItems)
                 }.start()
@@ -60,7 +72,7 @@ class UserImagesSync {
                                 category: "upcloud.image.${cloud.id}",
                                 owner: cloud.owner,
                                 name: cloudItem.title,
-                                zoneType: 'upcloud',
+                                //zoneType: 'upcloud',
                                 code: "upcloud.image.${cloud.id}.${cloudItem.uuid}",
                                 isCloudInit: false,
                                 imageType: 'qcow2',

@@ -6,8 +6,10 @@ import com.morpheusdata.core.util.SyncTask
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.ContainerType
+import com.morpheusdata.model.InstanceType
 import com.morpheusdata.model.InstanceTypeLayout
 import com.morpheusdata.model.OsType
+import com.morpheusdata.model.ProvisionType
 import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.WorkloadType
 import com.morpheusdata.model.WorkloadTypeSet
@@ -15,32 +17,33 @@ import com.morpheusdata.model.projection.ComputeServerIdentityProjection
 import com.morpheusdata.model.projection.VirtualImageIdentityProjection
 import com.morpheusdata.upcloud.UpcloudPlugin
 import com.morpheusdata.upcloud.services.UpcloudApiService
+import groovy.util.logging.Slf4j
 
-import javax.xml.crypto.Data
-
+@Slf4j
 class PublicTemplatesSync {
 
     private Cloud cloud
     UpcloudPlugin plugin
     private MorpheusContext morpheusContext
 
-    PublicTemplatesSync(Cloud cloud, UpcloudPlugin plugin) {
+    PublicTemplatesSync(Cloud cloud, UpcloudPlugin plugin, MorpheusContext morpheusContext) {
         this.cloud = cloud
         this.plugin = plugin
-        this.morpheusContext = plugin.morpheusContext
+        this.morpheusContext = morpheusContext
     }
 
     def execute() {
         try {
             def authConfig = plugin.getAuthConfig(cloud)
             def imageResults = UpcloudApiService.listPublicTemplates(authConfig)
+            log.info("imageResults: ${imageResults}")
 
             if (imageResults.success == true) {
                 def imageRecords = morpheusContext.async.virtualImage.listIdentityProjections(
                         new DataQuery().withFilter("category", "upcloud.image.public.template")
                 )
-
-                SyncTask<VirtualImageIdentityProjection, Map, VirtualImage> syncTask = new SyncTask<>(imageRecords, imageResults.imageData as Collection<Map>) as SyncTask<VirtualImageIdentityProjection, Map, VirtualImage>
+                log.info("imageRecords: ${imageRecords}")
+                SyncTask<VirtualImageIdentityProjection, Map, VirtualImage> syncTask = new SyncTask<>(imageRecords, imageResults as Collection<Map>) as SyncTask<VirtualImageIdentityProjection, Map, VirtualImage>
                 syncTask.addMatchFunction { VirtualImageIdentityProjection imageObject, Map cloudItem ->
                     imageObject.externalId == cloudItem?.uuid
                 }.withLoadObjectDetailsFromFinder { List<SyncTask.UpdateItemDto<VirtualImageIdentityProjection, Map>> updateItems ->
@@ -219,9 +222,9 @@ class PublicTemplatesSync {
     def createTemplateLayout(VirtualImage image, Map typeMatch, Map imageConfig) {
         def saves = []
         def zoneCategory = "upcloud.layout.public.template"
-        def instanceType = InstanceType.findByCode(typeMatch.instanceType)
+        def instanceType = new InstanceType(code:typeMatch.instanceType)
         //container type
-        def provisionType = ProvisionType.findByCode('upcloud')
+        def provisionType = new ProvisionType(code:'upcloud')
         def workloadTypeConfig = [code:zoneCategory + '.' + typeMatch.instanceType, shortName:typeMatch.instanceType,
                                    name:'UpCloud ' + typeMatch.name, containerVersion:typeMatch.version, repositoryImage:'image', entryPoint:'/bin/bash',
                                    statTypeCode:typeMatch.statType, logTypeCode:typeMatch.logType, virtualImage:image,

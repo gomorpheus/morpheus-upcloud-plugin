@@ -9,13 +9,14 @@ import org.apache.http.client.methods.*
 import org.apache.http.client.utils.*
 import org.apache.http.entity.*
 import org.apache.http.util.*
+import com.morpheusdata.upcloud.services.UpcloudApiService
 
 @Commons
 class UpcloudStatusUtility {
     static testConnection(Map authConfig) {
         def rtn = [success:false, invalidLogin:false]
         try {
-            def results = listZones(authConfig)
+            def results = UpcloudApiService.listZones(authConfig)
             rtn.success = results.success
         } catch(e) {
             log.error("testConnection to upcloud: ${e}")

@@ -26,9 +26,14 @@ import com.morpheusdata.model.StorageVolumeType
 import com.morpheusdata.request.ValidateCloudRequest
 import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.upcloud.sync.PublicTemplatesSync
+import com.morpheusdata.upcloud.sync.UserImagesSync
+import com.morpheusdata.upcloud.sync.VirtualMachinesSync
 import com.morpheusdata.upcloud.util.UpcloudStatusUtility
 import com.morpheusdata.upcloud.services.UpcloudApiService
+import groovy.json.JsonOutput
+import groovy.util.logging.Slf4j
 
+@Slf4j
 class UpcloudCloudProvider implements CloudProvider {
 	public static final String CLOUD_PROVIDER_CODE = 'upcloud.cloud'
 
@@ -80,17 +85,17 @@ class UpcloudCloudProvider implements CloudProvider {
 	Collection<OptionType> getOptionTypes() {
 		Collection<OptionType> options = [
 			new OptionType(code:'zoneType.upcloud.credential', inputType: OptionType.InputType.CREDENTIAL, name:'Credentials', category:'zoneType.upcloud',
-				fieldName:'type', fieldCode:'gomorpheus.label.credentials', fieldLabel:'Credentials', fieldContext:'credential', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:true, global:false,
-				placeHolder:null, helpBlock:'', defaultValue:'local', custom:false, displayOrder:2, fieldClass:null, optionSource:'credentials', config: JsonOutput.toJson(credentialTypes:['username-password']).toString()),
+				fieldName:'type', fieldCode:'gomorpheus.label.credentials', fieldLabel:'Credentials', fieldContext:'credential', fieldSet:'', fieldGroup:'Connection Options', required:true, enabled:true, editable:true, global:false,
+				placeHolder:null, helpBlock:'', defaultValue:'local', custom:false, displayOrder:1, fieldClass:null, optionSource:'credentials', config: JsonOutput.toJson(credentialTypes:['username-password']).toString()),
 			new OptionType(code:'zoneType.upcloud.username', inputType:OptionType.InputType.TEXT, name:'Username', category:'zoneType.upcloud',
-				fieldName:'username', fieldCode: 'gomorpheus.optiontype.Username', fieldLabel:'Username', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false,
-				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:2, fieldClass:null, fieldSize:15, localCredential:true),
+				fieldName:'username', fieldCode: 'gomorpheus.optiontype.Username', fieldLabel:'Username', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Options', required:true, enabled:true, editable:false, global:false,
+				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:2, fieldClass:null, localCredential:true),
 			new OptionType(code:'zoneType.upcloud.password', inputType:OptionType.InputType.PASSWORD, name:'Password', category:'zoneType.upcloud',
-				fieldName:'password', fieldCode: 'gomorpheus.optiontype.Password', fieldLabel:'Password', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false,
-				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:3, fieldClass:null, fieldSize:25, localCredential:true),
-			new OptionType(code:'zoneType.upcloud.zone', inputType:OptionType.InputType.TEXT, name:'Zone', category:'zoneType.upcloud',
-				fieldName:'zone', fieldCode: 'gomorpheus.optiontype.Zone', fieldLabel:'Zone', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false,
-				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:4, fieldClass:null, fieldSize:15)
+				fieldName:'password', fieldCode: 'gomorpheus.optiontype.Password', fieldLabel:'Password', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Options', required:true, enabled:true, editable:false, global:false,
+				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:3, fieldClass:null, localCredential:true),
+			new OptionType(code:'zoneType.upcloud.zone', inputType:OptionType.InputType.SELECT, name:'Zone', category:'zoneType.upcloud',
+				fieldName:'zone', fieldCode: 'gomorpheus.optiontype.Zone', fieldLabel:'Zone', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Options', required:true, enabled:true, editable:false, global:false,
+				placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:4, fieldClass:null, optionSourceType: null, optionSource: 'upcloud.upcloudCloudDataset', dependsOn: 'config.username, credential.type, credential.username, credential.password')
 		]
 
 		return options
@@ -181,15 +186,15 @@ class UpcloudCloudProvider implements CloudProvider {
 				provisionTypeCode: 'manual',
 				computeTypeCode:'docker-host',
 				optionTypes:[
-					new OptionType(code:'computeServerType.global.sshHost'),
-					new OptionType(code:'computeServerType.global.sshPort'),
-					new OptionType(code:'computeServerType.global.sshUsername'),
-					new OptionType(code:'computeServerType.global.sshPassword'),
-					new OptionType(code:'computeServerType.global.provisionKey'),
-					new OptionType(code:'computeServerType.global.lvmEnabled'),
-					new OptionType(code:'computeServerType.global.dataDevice'),
-					new OptionType(code:'computeServerType.global.softwareRaid'),
-					new OptionType(code:'computeServerType.global.network.name')
+					new OptionType(code:'computeServerType.global.sshHost', name: 'sshHost', fieldLabel: 'Host', fieldName: 'sshHost', displayOrder: 1),
+					new OptionType(code:'computeServerType.global.sshPort', name: 'sshPort', fieldLabel: 'Port', fieldName: 'sshPort', displayOrder: 2),
+					new OptionType(code:'computeServerType.global.sshUsername', name: 'sshUsername', fieldLabel: 'User', fieldName: 'sshUsername', displayOrder: 3),
+					new OptionType(code:'computeServerType.global.sshPassword', name: 'sshPassword', fieldLabel: 'Password', fieldName: 'sshPassword', displayOrder: 4),
+					new OptionType(code:'computeServerType.global.provisionKey', name: 'provisionKey', fieldLabel: 'SSH Key', fieldName: 'provisionKey', displayOrder: 5),
+					new OptionType(code:'computeServerType.global.lvmEnabled', name: 'lvmEnabled', fieldLabel: 'LVM Enabled?', fieldName: 'lvmEnabled', displayOrder: 6),
+					new OptionType(code:'computeServerType.global.dataDevice', name: 'dataDevice', fieldLabel: 'Data Volume', fieldName: 'dataDevice', displayOrder: 7),
+					new OptionType(code:'computeServerType.global.softwareRaid', name: 'softwareRaid', fieldLabel: 'Software Raid', fieldName: 'softwareRaid', displayOrder: 8),
+					new OptionType(code:'computeServerType.global.network.name', name: 'network name', fieldLabel: 'Network Interface', fieldName: 'name', displayOrder: 9)
 				]
 			),
 			new ComputeServerType(
@@ -222,11 +227,11 @@ class UpcloudCloudProvider implements CloudProvider {
 				provisionTypeCode: 'manual',
 				computeTypeCode: 'kvm-host',
 				optionTypes:[
-					new OptionType(code:'computeServerType.global.sshHost'),
-					new OptionType(code:'computeServerType.global.sshPort'),
-					new OptionType(code:'computeServerType.global.sshUsername'),
-					new OptionType(code:'computeServerType.global.sshPassword'),
-					new OptionType(code:'computeServerType.global.provisionKey')
+					new OptionType(code:'computeServerType.global.sshHost', name: 'sshHost', fieldLabel: 'Host', fieldName: 'sshHost', displayOrder: 1),
+					new OptionType(code:'computeServerType.global.sshPort', name: 'sshPort', fieldLabel: 'Port', fieldName: 'sshPort', displayOrder: 2),
+					new OptionType(code:'computeServerType.global.sshUsername', name: 'sshUsername', fieldLabel: 'User', fieldName: 'sshUsername', displayOrder: 3),
+					new OptionType(code:'computeServerType.global.sshPassword', name: 'sshPassword', fieldLabel: 'Password', fieldName: 'sshPassword', displayOrder: 4),
+					new OptionType(code:'computeServerType.global.provisionKey', name: 'provisionKey', fieldLabel: 'SSH Key', fieldName: 'provisionKey', displayOrder: 5)
 				]
 			)
 		]
@@ -344,8 +349,8 @@ class UpcloudCloudProvider implements CloudProvider {
 					//def doInventory = cloudInfo.getConfigProperty('importExisting')
 					//def vmCacheOpts = [zone:zone, createNew:(inventoryLevel == 'basic' || inventoryLevel == 'full'), inventoryLevel:inventoryLevel]
 
-					//(new UserImagesSync(this.plugin, cloudInfo)).execute()
-					//(new VirtualMachinesSync(this.plugin, cloudInfo)).execute()
+					(new UserImagesSync(cloudInfo, this.plugin, context)).execute()
+					(new VirtualMachinesSync(cloudInfo, this.plugin, context)).execute()
 
 					rtn = ServiceResponse.success()
 				} else {
@@ -378,7 +383,7 @@ class UpcloudCloudProvider implements CloudProvider {
 	void refreshDaily(Cloud cloudInfo) {
 		try {
 			//(new PlansSync(this.plugin, cloudInfo)).execute()
-			(new PublicTemplatesSync(this.plugin, cloudInfo)).execute()
+			(new PublicTemplatesSync(cloudInfo, this.plugin, context)).execute()
 		} catch(e) {
 			log.error("refreshZone error: ${e}", e)
 		}
