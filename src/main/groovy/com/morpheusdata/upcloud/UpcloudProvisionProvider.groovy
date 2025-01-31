@@ -14,6 +14,7 @@ import com.morpheusdata.model.ComputeCapacityInfo
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.ComputeServerInterface
 import com.morpheusdata.model.ComputeServerInterfaceType
+import com.morpheusdata.model.ComputeTypeSet
 import com.morpheusdata.model.Icon
 import com.morpheusdata.model.NetAddress
 import com.morpheusdata.model.NetworkProxy
@@ -24,6 +25,8 @@ import com.morpheusdata.model.StorageVolume
 import com.morpheusdata.model.StorageVolumeType
 import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.Workload
+import com.morpheusdata.model.WorkloadType
+import com.morpheusdata.model.provisioning.HostRequest
 import com.morpheusdata.model.provisioning.NetworkConfiguration
 import com.morpheusdata.model.provisioning.WorkloadRequest
 import com.morpheusdata.response.PrepareWorkloadResponse
@@ -742,6 +745,98 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 		} catch(e) {
 			log.error("runVirtualMachine error:${e}", e)
 			provisionResponse.setError('failed to upload image file')
+		}
+	}
+
+	@Override
+	ServiceResponse<ProvisionResponse> runHost(ComputeServer server, HostRequest hostRequest, Map opts) {
+		log.debug("runHost: ${server} ${hostRequest} ${opts}")
+
+		ProvisionResponse provisionResponse = new ProvisionResponse()
+		try {
+			def config = server.getConfigMap()
+			Cloud cloud = server.cloud
+			Account account = server.account
+			ServicePlan plan = server.plan
+			def sizeRef = plan.externalId
+			config.sizeRef = sizeRef
+			def imageType = config.templateTypeSelect ?: 'default'
+			def imageId
+			def virtualImage
+			def layout = server?.layout
+			def typeSet = server.typeSet
+
+			if(layout && typeSet && (typeSet.workloadType.virtualImage || typeSet.workloadType.osType)) {
+				Long computeTypeSetId = server.typeSet?.id
+				if(computeTypeSetId) {
+					ComputeTypeSet computeTypeSet = morpheus.services.computeTypeSet.get(computeTypeSetId)
+					WorkloadType workloadType = computeTypeSet.getWorkloadType()
+					if(workloadType) {
+						Long workloadTypeId = workloadType.id
+						WorkloadType containerType = morpheus.services.workloadType.get(workloadTypeId)
+						Long virtualImageId = containerType.virtualImage.id
+						virtualImage = morpheus.services.virtualImage.get(virtualImageId)
+						def imageLocation = virtualImage?.imageLocations.find{it.refId == cloud.id && it.refType == "ComputeZone"}
+						imageId = imageLocation?.externalId
+					}
+				}
+			}
+			if(!virtualImage && imageType == 'custom' && config.imageId) {
+				virtualImage = server.sourceImage
+				imageId = virtualImage.externalId
+			} else if (!virtualImage) {
+				virtualImage  = new VirtualImage(code: 'upcloud.image.morpheus.ubuntu.20.04')
+				imageId = virtualImage.externalId
+			}
+
+			if(imageId) {
+				server.sourceImage = virtualImage
+				def maxMemory = server.maxMemory ?: server.plan.maxMemory
+				def maxCores = server.maxCores ?: server.plan.maxCores
+				def rootVolume = server.volumes?.find { it.rootVolume == true }
+				def maxStorage = rootVolume.maxStorage
+				def dataDisks = server?.volumes?.findAll{it.rootVolume == false}?.sort{it.id}
+				server.osDevice = '/dev/vda'
+				server.dataDevice = dataDisks?.size() > 0 ? '/dev/vdb' : '/dev/vda'
+				opts.server.lvmEnabled = dataDisks?.size() > 0
+				def createOpts = [
+						account		: account,
+						name		: server.name,
+						maxMemory	: maxMemory,
+						maxCores	: maxCores,
+						maxStorage	: maxStorage,
+						maxCpu		: maxCores,
+						imageId		: imageId,
+						server		: server,
+						zone		: cloud,
+						dataDisks	: dataDisks,
+						externalId	: server.externalId,
+				]
+				//cloud init config
+				createOpts.hostname = server.getExternalHostname()
+				createOpts.cloudConfigUser = hostRequest.cloudConfigUser
+				createOpts.cloudConfigMeta = hostRequest.cloudConfigMeta
+				createOpts.cloudConfigNetwork = hostRequest.cloudConfigNetwork
+				createOpts.networkConfig = hostRequest.networkConfiguration
+				createOpts.osType = (virtualImage.osType?.platform == 'windows' ? 'windows' : 'linux') ?: virtualImage.platform
+				createOpts.platform = createOpts.osType
+
+				context.async.computeServer.save(server).blockingGet()
+				//create it
+				log.debug("create server: ${createOpts}")
+				runVirtualMachine(createOpts, provisionResponse, opts)
+			} else {
+				server.statusMessage = 'Image not found'
+			}
+			if (provisionResponse.success != true) {
+				return new ServiceResponse(success: false, msg: provisionResponse.message ?: 'vm config error', error: provisionResponse.message, data: provisionResponse)
+			} else {
+				return new ServiceResponse<ProvisionResponse>(success: true, data: provisionResponse)
+			}
+		} catch(e) {
+			log.error("Error in runHost method: ${e}", e)
+			provisionResponse.setError(e.message)
+			return new ServiceResponse(success: false, msg: e.message, error: e.message, data: provisionResponse)
 		}
 	}
 }
