@@ -3,11 +3,13 @@ package com.morpheusdata.upcloud
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.backup.BackupRestoreProvider
+import com.morpheusdata.core.backup.response.BackupRestoreResponse
 import com.morpheusdata.response.ServiceResponse;
 import com.morpheusdata.model.BackupRestore;
 import com.morpheusdata.model.BackupResult;
 import com.morpheusdata.model.Backup;
 import com.morpheusdata.model.Instance
+import com.morpheusdata.upcloud.services.UpcloudApiService
 import groovy.util.logging.Slf4j
 
 @Slf4j
@@ -112,7 +114,55 @@ class UpcloudBackupRestoreProvider implements BackupRestoreProvider {
 	 */
 	@Override
 	ServiceResponse restoreBackup(BackupRestore backupRestore, BackupResult backupResult, Backup backup, Map opts) {
-		return ServiceResponse.success()
+		ServiceResponse<BackupRestoreResponse> rtn = ServiceResponse.prepare(new BackupRestoreResponse(backupRestore))
+		log.debug("restoreBackup {}, opts {}", backupResult, opts)
+
+		try {
+			def config = backupResult.getConfigMap()
+			def snapshotList = config.snapshotList
+			if(snapshotList?.size() > 0) {
+				def workload = morpheus.async.workload.get(backupResult.containerId).blockingGet()
+				def instance = morpheus.async.instance.get(workload.instanceId).blockingGet()
+				def server = morpheus.async.server.get(workload.serverId).blockingGet()
+				def cloud = morpheus.async.cloud.get(serer.zoneId).blockingGet()
+				//auth config
+				def authConfig = UpcloudApiService.getAuthConfig(cloud)
+				//stop the server
+				def stopResults = UpcloudProvisionProvider.stopServer(server)
+				//check this - wait for stopped
+				def statusResults = UpcloudApiService.waitForServerStatus(authConfig, server.externalId, 'stopped')
+				//restore
+				def restoreResults = []
+				def restoreSuccess = true
+				snapshotList?.each { snapshot ->
+					def restoreResult = UpcloudApiService.restoreSnapshot(authConfig, snapshot.storageId)
+					restoreSuccess = restoreResult.success && restoreSuccess
+					restoreResults << restoreResult
+				}
+				log.info("restore results: {}", restoreResults)
+				if(restoreSuccess == true) {
+					rtn.data.backupRestore.status = BackupStatus.IN_PROGRESS
+					rtn.data.backupRestore.externalId = server.externalId
+					rtn.data.backupRestore.startDate = new Date()
+					rtn.success = true
+					rtn.data.updates = true
+					//start the server
+					def startResults = UpcloudProvisionProvider.startServer(server)
+				} else {
+					rtn.success = false
+					rtn.data.updates = true
+					rtn.data.backupRestore.status = BackupStatus.FAILED
+				}
+			}
+		} catch(e) {
+			log.error("restoreBackup: ${e}", e)
+			rtn.success = false
+			rtn.message = e.getMessage()
+			rtn.data.updates = true
+			rtn.data.backupRestore.status = BackupStatus.FAILED
+			rtn.data.backupRestore.errorMessage = e.getMessage()
+		}
+		return rtn
 	}
 
 	/**
