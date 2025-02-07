@@ -3,11 +3,14 @@ package com.morpheusdata.upcloud
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.backup.BackupRestoreProvider
+import com.morpheusdata.core.backup.response.BackupRestoreResponse
+import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.response.ServiceResponse;
 import com.morpheusdata.model.BackupRestore;
 import com.morpheusdata.model.BackupResult;
 import com.morpheusdata.model.Backup;
 import com.morpheusdata.model.Instance
+import com.morpheusdata.upcloud.services.UpcloudApiService
 import groovy.util.logging.Slf4j
 
 @Slf4j
@@ -127,6 +130,33 @@ class UpcloudBackupRestoreProvider implements BackupRestoreProvider {
 	 */
 	@Override
 	ServiceResponse refreshBackupRestoreResult(BackupRestore backupRestore, BackupResult backupResult) {
-		return ServiceResponse.success()
+		log.debug("syncBackupRestoreResult backupRestore: ${backupRestore}")
+		ServiceResponse<BackupRestoreResponse> rtn = ServiceResponse.prepare(new BackupRestoreResponse(backupRestore))
+		def externalId = backupRestore.externalId
+		if(externalId) {
+			//load it
+			def server = morpheus.async.computeServer.find(
+					new DataQuery().withFilter("account", "=", backupRestore.account)
+							.withFilter("externalId", "=", externalId)
+			).blockingGet()
+
+			if(server) {
+				//get status of server
+				def authConfig = UpcloudApiService.getAuthConfig(server.cloud)
+				def serverDetail = UpcloudApiService.getServerDetail(authConfig, server.externalId)
+				if(serverDetail.success == true && serverDetail?.server?.state == 'started') {
+					//running again
+					rtn.data.backupRestore.endDate = new Date()
+					rtn.data.backupRestore.status = "SUCCEEDED"
+					def startDate = rtn.data.backupRestore.startDate
+					def endDate = rtn.data.backupRestore.endDate
+					if(startDate && endDate)
+						rtn.data.backupRestore.duration = endDate.time - startDate.time
+
+					rtn.data.updates = true
+				}
+			}
+		}
+		return rtn
 	}
 }
