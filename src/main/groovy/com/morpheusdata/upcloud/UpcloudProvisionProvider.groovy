@@ -123,6 +123,21 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 	 */
 	@Override
 	Collection<OptionType> getNodeOptionTypes() {
+		OptionType virtualImageTypeOption = new OptionType([
+				name: 'virtual image type',
+				code:'upcloud-node-virtual-image-type',
+				fieldContext: 'config',
+				fieldName: 'virtualImageSelect',
+				fieldCode: null,
+				fieldLabel: null,
+				fieldGroup: null,
+				inputType: OptionType.InputType.RADIO,
+				displayOrder:98,
+				fieldClass:'inline',
+				required: false,
+				editable: true,
+				optionSource: 'virtualImageTypeList'
+		])
 		OptionType osTypeOption = new OptionType([
 				name : 'osType',
 				code : 'upcloud-node-os-type',
@@ -132,7 +147,9 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 				inputType : OptionType.InputType.SELECT,
 				displayOrder : 100,
 				required : false,
-				optionSource : 'osTypes'
+				optionSource : 'osTypes',
+				noSelection: 'Select',
+				visibleOnCode: 'config.virtualImageSelect:os'
 		])
 		OptionType imageOption = new OptionType([
 				name : 'image',
@@ -143,7 +160,8 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 				inputType : OptionType.InputType.SELECT,
 				displayOrder : 99,
 				required : false,
-				optionSource : 'upcloud.upcloudImageDataset'
+				optionSource : 'upcloud.upcloudImageDataset',
+				visibleOnCode: 'config.virtualImageSelect:vi'
 		])
 		OptionType logFolder = new OptionType([
 				name : 'mountLogs',
@@ -176,7 +194,7 @@ class UpcloudProvisionProvider extends AbstractProvisionProvider implements Work
 				helpText: '(Optional) If using deployment services, this mount point will be replaced with the contents of said deployments.',
 				required : false,
 		])
-		return [osTypeOption, imageOption, logFolder, configFolder, deployFolder]
+		return [virtualImageTypeOption, osTypeOption, imageOption, logFolder, configFolder, deployFolder]
 	}
 
 	/**

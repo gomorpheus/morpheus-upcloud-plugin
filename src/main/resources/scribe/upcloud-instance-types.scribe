@@ -34,8 +34,22 @@ resource "virtual-image" "upcloud-image-morpheus-ubuntu-14_04" {
     computeServerImage  = true
     isCloudInit         = false
     externalId          = "01000000-0000-4000-8000-000030040200"
-    osType              = {code = "ubuntu.14.04.64"}
+    osType              = {
+          code = "ubuntu.14.04.64"
+          owner = null
+    }
 }
+
+resource "os-type-image" "upcloud-image-morpheus-ubuntu-14_04" {
+   code               = "upcloud.image.morpheus.ubuntu.14.04"
+   provisionType      = "upcloud"
+   virtualImage       = virtual-image.upcloud-image-morpheus-ubuntu-14_04
+   account            = null
+   osType = {
+      code = "ubuntu.14.04.64"
+      owner = null
+   }
+ }
 
 resource "virtual-image" "upcloud-image-morpheus-ubuntu-18_04" {
     code                = "upcloud.image.morpheus.ubuntu.18.04"
@@ -49,8 +63,22 @@ resource "virtual-image" "upcloud-image-morpheus-ubuntu-18_04" {
     computeServerImage  = true
     isCloudInit         = false
     externalId          = "01000000-0000-4000-8000-000030080200"
-    osType              = {code = "ubuntu.18.04.64"}
+    osType              = {
+        code = "ubuntu.18.04.64"
+        owner = null
+    }
 }
+
+resource "os-type-image" "upcloud-image-morpheus-ubuntu-18_04" {
+   code               = "upcloud.image.morpheus.ubuntu.18.04"
+   provisionType      = "upcloud"
+   virtualImage       = virtual-image.upcloud-image-morpheus-ubuntu-18_04
+   account            = null
+   osType             = {
+       code = "ubuntu.18.04.64"
+       owner = null
+   }
+ }
 
 resource "virtual-image" "upcloud-image-morpheus-ubuntu-20_04" {
     code                = "upcloud.image.morpheus.ubuntu.20.04"
@@ -64,8 +92,22 @@ resource "virtual-image" "upcloud-image-morpheus-ubuntu-20_04" {
     computeServerImage  = true
     isCloudInit         = false
     externalId          = "01000000-0000-4000-8000-000030200200"
-    osType              = {code = "ubuntu.20.04.64"}
+    osType              = {
+        code = "ubuntu.20.04.64"
+        owner = null
+    }
 }
+
+resource "os-type-image" "upcloud-image-morpheus-ubuntu-20_04" {
+   code               = "upcloud.image.morpheus.ubuntu.20.04"
+   provisionType      = "upcloud"
+   virtualImage       = virtual-image.upcloud-image-morpheus-ubuntu-20_04
+   account            = null
+   osType = {
+      code = "ubuntu.20.04.64"
+      owner = null
+   }
+ }
 
 resource "virtual-image" "upcloud-image-morpheus-centos-7_3" {
     code                = "upcloud.image.morpheus.centos.7.3"
@@ -79,8 +121,22 @@ resource "virtual-image" "upcloud-image-morpheus-centos-7_3" {
     computeServerImage  = true
     isCloudInit         = false
     externalId          = "01000000-0000-4000-8000-000050010300"
-    osType              = {code = "cent.7.64"}
+    osType              = {
+        code = "cent.7.64"
+        owner = null
+    }
 }
+
+resource "os-type-image" "upcloud-image-morpheus-centos-7_3" {
+   code               = "upcloud.image.morpheus.centos.7.3"
+   provisionType      = "upcloud"
+   virtualImage       = virtual-image.upcloud-image-morpheus-centos-7_3
+   account            = null
+   osType = {
+      code = "cent.7.64"
+      owner = null
+   }
+ }
 
 resource "virtual-image" "upcloud-image-morpheus-centos-7_5" {
     code                = "upcloud.image.morpheus.centos.7.5"
@@ -94,8 +150,22 @@ resource "virtual-image" "upcloud-image-morpheus-centos-7_5" {
     computeServerImage  = true
     isCloudInit         = false
     externalId          = "01000000-0000-4000-8000-000050010300"
-    osType              = {code = "cent.7.64"}
+    osType              = {
+        code = "cent.7.64"
+        owner = null
+    }
 }
+
+resource "os-type-image" "upcloud-image-morpheus-centos-7_5" {
+   code               = "upcloud.image.morpheus.centos.7.5"
+   provisionType      = "upcloud"
+   virtualImage       = virtual-image.upcloud-image-morpheus-centos-7_5
+   account            = null
+   osType = {
+      code = "cent.7.64"
+      owner = null
+   }
+ }
 
 resource "instance-type" "upcloud" {
   code                    = "upcloud"
