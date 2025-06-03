@@ -4,7 +4,7 @@ resource "option-type" "workloadType-upcloud-image" {
   name         = "imageType"
   category     = "workloadType.upcloud"
   fieldName    = "imageId"
-  optionSource = "upcloudImage"
+  optionSource = "upcloud.upcloudImageDataset"
   optionSourceType = "upcloud"
   fieldCode    = "gomorpheus.optiontype.Image"
   fieldLabel   = "Image"
@@ -187,7 +187,7 @@ resource "instance-type" "upcloud" {
   provisionType           = "upcloud"
   backupType              = "upCloudSnapshot"
   optionTypes             = [
-    option-type.workloadType-upcloud-template,
+    option-type.workloadType-upcloud-image,
     "instanceType.exposePorts"
   ]
   pluginIconPath          = "upcloud.svg"
